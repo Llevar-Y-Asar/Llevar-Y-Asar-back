@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Optional;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/productos")
@@ -20,16 +21,28 @@ public class ProductoController {
     @Autowired
     private ProductoService productoService;
     
-    @GetMapping
-    @Operation(summary = "Obtener todos los productos", description = "Retorna la lista completa de productos")
-    public ResponseEntity<List<Producto>> obtenerTodos() {
-        return ResponseEntity.ok(productoService.obtenerTodos());
-    }
-    
     @GetMapping("/activos")
     @Operation(summary = "Obtener productos activos", description = "Retorna solo los productos que están activos")
     public ResponseEntity<List<Producto>> obtenerActivos() {
         return ResponseEntity.ok(productoService.obtenerActivos());
+    }
+    
+    @GetMapping("/buscar")
+    @Operation(summary = "Buscar productos", description = "Busca productos por nombre")
+    public ResponseEntity<List<Producto>> buscar(@RequestParam String nombre) {
+        return ResponseEntity.ok(productoService.buscar(nombre));
+    }
+    
+    @GetMapping("/categoria/{categoria}")
+    @Operation(summary = "Obtener productos por categoría", description = "Filtra productos por categoría específica")
+    public ResponseEntity<List<Producto>> obtenerPorCategoria(@PathVariable String categoria) {
+        return ResponseEntity.ok(productoService.obtenerPorCategoria(categoria));
+    }
+    
+    @GetMapping
+    @Operation(summary = "Obtener todos los productos", description = "Retorna la lista completa de productos")
+    public ResponseEntity<List<Producto>> obtenerTodos() {
+        return ResponseEntity.ok(productoService.obtenerTodos());
     }
     
     @GetMapping("/{id}")
@@ -39,18 +52,6 @@ public class ProductoController {
     public ResponseEntity<Producto> obtenerPorId(@PathVariable String id) {
         Optional<Producto> producto = productoService.obtenerPorId(id);
         return producto.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
-    }
-    
-    @GetMapping("/categoria/{categoria}")
-    @Operation(summary = "Obtener productos por categoría", description = "Filtra productos por categoría específica")
-    public ResponseEntity<List<Producto>> obtenerPorCategoria(@PathVariable String categoria) {
-        return ResponseEntity.ok(productoService.obtenerPorCategoria(categoria));
-    }
-    
-    @GetMapping("/buscar")
-    @Operation(summary = "Buscar productos", description = "Busca productos por nombre")
-    public ResponseEntity<List<Producto>> buscar(@RequestParam String nombre) {
-        return ResponseEntity.ok(productoService.buscar(nombre));
     }
     
     @PostMapping
@@ -80,11 +81,31 @@ public class ProductoController {
         return ResponseEntity.noContent().build();
     }
     
-    @PutMapping("/{id}/desactivar")
+    @PatchMapping("/{id}/desactivar")
     @Operation(summary = "Desactivar producto", description = "Desactiva un producto sin eliminarlo")
     @ApiResponse(responseCode = "200", description = "Producto desactivado")
     public ResponseEntity<Void> desactivar(@PathVariable String id) {
         productoService.desactivar(id);
         return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/{id}/stock")
+    @Operation(summary = "Actualizar stock del producto", description = "Decrementa el stock cuando se agrega al carrito")
+    @ApiResponse(responseCode = "200", description = "Stock actualizado")
+    @ApiResponse(responseCode = "404", description = "Producto no encontrado")
+    public ResponseEntity<?> actualizarStock(@PathVariable String id, @RequestBody Map<String, Integer> body) {
+        Integer cantidad = body.get("cantidad");
+        if (cantidad == null || cantidad <= 0) {
+            return ResponseEntity.badRequest().body(Map.of("mensaje", "Cantidad debe ser mayor a 0"));
+        }
+        
+        Producto actualizado = productoService.actualizarStock(id, cantidad);
+        if (actualizado != null) {
+            return ResponseEntity.ok(Map.of(
+                "mensaje", "Stock actualizado exitosamente",
+                "producto", actualizado
+            ));
+        }
+        return ResponseEntity.notFound().build();
     }
 }
