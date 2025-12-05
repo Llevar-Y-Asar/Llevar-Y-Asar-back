@@ -15,6 +15,9 @@ public class CarritoService {
     @Autowired
     private CarritoRepository carritoRepository;
     
+    @Autowired
+    private ProductoService productoService;
+    
     public Carrito obtenerPorUsuario(String usuarioId) {
         Optional<Carrito> carrito = carritoRepository.findByUsuarioId(usuarioId);
         return carrito.orElseGet(() -> crearCarritoNuevo(usuarioId));
@@ -31,13 +34,25 @@ public class CarritoService {
     public Carrito agregarItem(String usuarioId, CarritoItem item) {
         Carrito carrito = obtenerPorUsuario(usuarioId);
         
+        // Validar que hay stock disponible
+        if (!productoService.tieneStock(item.getProductoId(), item.getCantidad())) {
+            throw new RuntimeException("Stock insuficiente para el producto");
+        }
+        
         Optional<CarritoItem> itemExistente = carrito.getItems().stream()
                 .filter(i -> i.getProductoId().equals(item.getProductoId()))
                 .findFirst();
         
         if (itemExistente.isPresent()) {
-            itemExistente.get().setCantidad(itemExistente.get().getCantidad() + item.getCantidad());
+            int cantidadAnterior = itemExistente.get().getCantidad();
+            int cantidadNueva = cantidadAnterior + item.getCantidad();
+            
+            // Decrementar solo la cantidad nueva agregada
+            productoService.actualizarStock(item.getProductoId(), item.getCantidad());
+            itemExistente.get().setCantidad(cantidadNueva);
         } else {
+            // Decrementar stock al agregar
+            productoService.actualizarStock(item.getProductoId(), item.getCantidad());
             carrito.getItems().add(item);
         }
         

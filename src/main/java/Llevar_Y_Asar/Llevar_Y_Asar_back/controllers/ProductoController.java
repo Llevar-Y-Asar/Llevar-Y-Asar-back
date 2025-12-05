@@ -93,18 +93,15 @@ public class ProductoController {
     @Operation(summary = "Actualizar stock del producto", description = "Decrementa el stock cuando se agrega al carrito")
     @ApiResponse(responseCode = "200", description = "Stock actualizado")
     @ApiResponse(responseCode = "404", description = "Producto no encontrado")
-    public ResponseEntity<?> actualizarStock(@PathVariable String id, @RequestBody Map<String, Integer> body) {
+    public ResponseEntity<Producto> actualizarStock(@PathVariable String id, @RequestBody Map<String, Integer> body) {
         Integer cantidad = body.get("cantidad");
         if (cantidad == null || cantidad <= 0) {
-            return ResponseEntity.badRequest().body(Map.of("mensaje", "Cantidad debe ser mayor a 0"));
+            return ResponseEntity.badRequest().build();
         }
         
         Producto actualizado = productoService.actualizarStock(id, cantidad);
         if (actualizado != null) {
-            return ResponseEntity.ok(Map.of(
-                "mensaje", "Stock actualizado exitosamente",
-                "producto", actualizado
-            ));
+            return ResponseEntity.ok(actualizado);
         }
         return ResponseEntity.notFound().build();
     }
