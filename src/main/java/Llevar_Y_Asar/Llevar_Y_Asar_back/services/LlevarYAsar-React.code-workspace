@@ -1,0 +1,10 @@
+{
+	"folders": [
+		{
+			"path": "../../../../../../../LlevarYAsar-React"
+		}
+	],
+	"settings": {
+		"java.compile.nullAnalysis.mode": "automatic"
+	}
+}

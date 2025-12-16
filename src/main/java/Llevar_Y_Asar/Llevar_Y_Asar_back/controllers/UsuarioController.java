@@ -2,6 +2,7 @@ package Llevar_Y_Asar.Llevar_Y_Asar_back.controllers;
 
 import Llevar_Y_Asar.Llevar_Y_Asar_back.models.Usuario;
 import Llevar_Y_Asar.Llevar_Y_Asar_back.services.UsuarioService;
+import Llevar_Y_Asar.Llevar_Y_Asar_back.utils.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,8 +24,11 @@ public class UsuarioController {
     @Autowired
     private UsuarioService usuarioService;
     
+    @Autowired
+    private JwtUtil jwtUtil;
+    
     @PostMapping("/registro")
-    @Operation(summary = "Registrar nuevo usuario", description = "Crea una nueva cuenta de usuario con RUT chileno")
+    @Operation(summary = "Registrar nuevo usuario", description = "Crea una nueva cuenta de usuario con email")
     @ApiResponse(responseCode = "201", description = "Usuario registrado exitosamente")
     public ResponseEntity<?> registrar(@RequestBody Usuario usuario) {
         try {
@@ -41,36 +45,38 @@ public class UsuarioController {
     }
     
     @PostMapping("/login")
-    @Operation(summary = "Iniciar sesión", description = "Autentica un usuario con RUT y contraseña")
+    @Operation(summary = "Iniciar sesión", description = "Autentica un usuario con email y contraseña")
     public ResponseEntity<?> login(@RequestBody Map<String, String> credenciales) {
-        String rut = credenciales.get("rut");
+        String email = credenciales.get("email");
         String password = credenciales.get("password");
         
-        if (rut == null || password == null) {
+        if (email == null || password == null) {
             Map<String, String> error = new HashMap<>();
-            error.put("error", "RUT y contraseña son requeridos");
+            error.put("error", "Email y contraseña son requeridos");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
         }
         
-        if (usuarioService.validarLogin(rut, password)) {
-            Optional<Usuario> usuario = usuarioService.obtenerPorRut(rut);
+        if (usuarioService.validarLoginPorEmail(email, password)) {
+            Optional<Usuario> usuario = usuarioService.obtenerPorEmail(email);
             if (usuario.isPresent()) {
+                String token = jwtUtil.generateToken(email);
                 Map<String, Object> response = new HashMap<>();
                 response.put("mensaje", "Inicio de sesión exitoso");
                 response.put("usuario", usuario.get());
+                response.put("token", token);
                 return ResponseEntity.ok(response);
             }
         }
         
         Map<String, String> error = new HashMap<>();
-        error.put("error", "RUT o contraseña incorrectos");
+        error.put("error", "Email o contraseña incorrectos");
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
     }
     
-    @GetMapping("/{rut}")
-    @Operation(summary = "Obtener perfil de usuario", description = "Retorna los datos del usuario por su RUT")
-    public ResponseEntity<?> obtenerPorRut(@PathVariable String rut) {
-        Optional<Usuario> usuario = usuarioService.obtenerPorRut(rut);
+    @GetMapping("/perfil/{email}")
+    @Operation(summary = "Obtener perfil de usuario", description = "Retorna los datos del usuario por su email")
+    public ResponseEntity<?> obtenerPorEmail(@PathVariable String email) {
+        Optional<Usuario> usuario = usuarioService.obtenerPorEmail(email);
         if (usuario.isPresent()) {
             return ResponseEntity.ok(usuario.get());
         }
@@ -85,11 +91,11 @@ public class UsuarioController {
         return ResponseEntity.ok(usuarios);
     }
     
-    @PutMapping("/{rut}")
-    @Operation(summary = "Actualizar perfil de usuario", description = "Modifica los datos de un usuario existente")
-    public ResponseEntity<?> actualizar(@PathVariable String rut, @RequestBody Usuario usuario) {
+    @PutMapping("/perfil/{email}")
+    @Operation(summary = "Actualizar perfil de usuario", description = "Modifica los datos de un usuario existente por email")
+    public ResponseEntity<?> actualizar(@PathVariable String email, @RequestBody Usuario usuarioActualizado) {
         try {
-            Usuario actualizado = usuarioService.actualizar(rut, usuario);
+            Usuario actualizado = usuarioService.actualizarPorEmail(email, usuarioActualizado);
             return ResponseEntity.ok(actualizado);
         } catch (RuntimeException e) {
             Map<String, String> error = new HashMap<>();
@@ -99,7 +105,7 @@ public class UsuarioController {
     }
     
     @DeleteMapping("/{rut}")
-    @Operation(summary = "Eliminar usuario (Admin)", description = "Elimina una cuenta de usuario del sistema")
+    @Operation(summary = "Eliminar usuario (Admin)", description = "Elimina una cuenta de usuario del sistema por RUT")
     public ResponseEntity<?> eliminar(@PathVariable String rut) {
         try {
             usuarioService.eliminar(rut);
@@ -114,7 +120,7 @@ public class UsuarioController {
     }
     
     @PatchMapping("/{rut}/desactivar")
-    @Operation(summary = "Desactivar cuenta (Admin)", description = "Desactiva una cuenta de usuario")
+    @Operation(summary = "Desactivar cuenta (Admin)", description = "Desactiva una cuenta de usuario por RUT")
     public ResponseEntity<?> desactivar(@PathVariable String rut) {
         try {
             usuarioService.desactivar(rut);
