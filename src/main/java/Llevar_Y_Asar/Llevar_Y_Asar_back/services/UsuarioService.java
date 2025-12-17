@@ -4,10 +4,12 @@ import Llevar_Y_Asar.Llevar_Y_Asar_back.models.Usuario;
 import Llevar_Y_Asar.Llevar_Y_Asar_back.repositories.UsuarioRepository;
 import Llevar_Y_Asar.Llevar_Y_Asar_back.utils.RutValidator;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
@@ -19,6 +21,10 @@ public class UsuarioService implements UserDetailsService {
 
     @Autowired
     private UsuarioRepository usuarioRepository;
+
+    @Autowired
+    @Lazy
+    private BCryptPasswordEncoder passwordEncoder;
 
     public List<Usuario> obtenerTodos() {
         return usuarioRepository.findAll();
@@ -40,6 +46,11 @@ public class UsuarioService implements UserDetailsService {
         if (usuarioRepository.existsByEmail(usuario.getEmail())) {
             throw new RuntimeException("El email ya está registrado");
         }
+        // Encriptar contraseña con BCrypt
+        usuario.setPassword(passwordEncoder.encode(usuario.getPassword()));
+        // Asegurar que el rol es USER (SEGURIDAD: no se puede crear admin desde registro)
+        usuario.setRol("USER");
+        usuario.setActivo(true);
         return usuarioRepository.save(usuario);
     }
 
@@ -71,7 +82,7 @@ public class UsuarioService implements UserDetailsService {
     // VALIDAR LOGIN POR EMAIL
     public boolean validarLoginPorEmail(String email, String password) {
         return usuarioRepository.findByEmail(email)
-            .map(u -> u.getPassword().equals(password))
+            .map(u -> passwordEncoder.matches(password, u.getPassword()))
             .orElse(false);
     }
 
@@ -81,17 +92,10 @@ public class UsuarioService implements UserDetailsService {
         Usuario u = usuarioRepository.findByEmail(email)
             .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + email));
 
-        var authorities = Collections.singletonList(
-            new SimpleGrantedAuthority("ROLE_" + u.getRol())
-        );
-
-        return org.springframework.security.core.userdetails.User
-            .withUsername(u.getEmail())
+        return org.springframework.security.core.userdetails.User.builder()
+            .username(u.getEmail())
             .password(u.getPassword())
-            .authorities(authorities)
-            .accountExpired(false)
-            .accountLocked(false)
-            .credentialsExpired(false)
+            .roles(u.getRol())
             .disabled(!u.getActivo())
             .build();
     }

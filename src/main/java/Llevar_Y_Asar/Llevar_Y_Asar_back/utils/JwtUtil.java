@@ -18,7 +18,7 @@ public class JwtUtil {
 
     private static final String SECRET_KEY = System.getenv("JWT_SECRET") != null 
         ? System.getenv("JWT_SECRET") 
-        : "llevar_y_asar_jwt_secret_key_2025_for_dev_only_do_not_use_in_prod";
+        : "dGhpc2lzYXZlcnlzZWNyZXRrZXlmb3Jqd3RzaWduaW5ndGhhdGlzbG9uZ2Vub3VnaGZvcnRoZWFsZ29yaXRobQ==";
 
     public String extractEmail(String token) {
         return extractClaim(token, Claims::getSubject);

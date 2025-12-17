@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Optional;
@@ -21,12 +22,14 @@ public class OrdenController {
     private OrdenService ordenService;
     
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Obtener todas las órdenes", description = "Retorna la lista de todas las órdenes (solo admin)")
     public ResponseEntity<List<Orden>> obtenerTodas() {
         return ResponseEntity.ok(ordenService.obtenerTodas());
     }
     
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Obtener orden por ID", description = "Retorna una orden específica")
     @ApiResponse(responseCode = "200", description = "Orden encontrada")
     @ApiResponse(responseCode = "404", description = "Orden no encontrada")
@@ -36,18 +39,21 @@ public class OrdenController {
     }
     
     @GetMapping("/usuario/{usuarioId}")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Obtener órdenes del usuario", description = "Retorna todas las órdenes de un usuario específico")
     public ResponseEntity<List<Orden>> obtenerPorUsuario(@PathVariable String usuarioId) {
         return ResponseEntity.ok(ordenService.obtenerPorUsuario(usuarioId));
     }
     
     @GetMapping("/estado/{estado}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Obtener órdenes por estado", description = "Filtra órdenes por estado (PENDIENTE, CONFIRMADA, ENVIADA, ENTREGADA, CANCELADA)")
     public ResponseEntity<List<Orden>> obtenerPorEstado(@PathVariable String estado) {
         return ResponseEntity.ok(ordenService.obtenerPorEstado(estado));
     }
     
     @PostMapping
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Crear nueva orden", description = "Crea una nueva orden de compra")
     @ApiResponse(responseCode = "200", description = "Orden creada exitosamente")
     public ResponseEntity<Orden> crear(@RequestBody Orden orden) {
@@ -55,6 +61,7 @@ public class OrdenController {
     }
     
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Actualizar orden", description = "Actualiza los datos de una orden")
     @ApiResponse(responseCode = "200", description = "Orden actualizada")
     @ApiResponse(responseCode = "404", description = "Orden no encontrada")
@@ -67,6 +74,7 @@ public class OrdenController {
     }
     
     @PutMapping("/{id}/estado/{nuevoEstado}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Cambiar estado de orden", description = "Actualiza el estado de una orden")
     @ApiResponse(responseCode = "200", description = "Estado actualizado")
     @ApiResponse(responseCode = "404", description = "Orden no encontrada")
@@ -79,6 +87,7 @@ public class OrdenController {
     }
     
     @DeleteMapping("/{id}/cancelar")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Cancelar orden", description = "Cancela una orden existente")
     @ApiResponse(responseCode = "204", description = "Orden cancelada")
     public ResponseEntity<Void> cancelar(@PathVariable String id) {

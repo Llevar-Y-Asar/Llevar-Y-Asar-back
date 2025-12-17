@@ -6,6 +6,7 @@ import Llevar_Y_Asar.Llevar_Y_Asar_back.utils.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -52,7 +53,9 @@ public class UsuarioController {
         if (usuarioService.validarLoginPorEmail(email, password)) {
             Optional<Usuario> usuario = usuarioService.obtenerPorEmail(email);
             if (usuario.isPresent()) {
-                String token = jwtUtil.generateToken(email);
+                Map<String, Object> claims = new HashMap<>();
+                claims.put("rol", usuario.get().getRol());
+                String token = jwtUtil.generateToken(claims, email);
                 Map<String, Object> response = new HashMap<>();
                 response.put("mensaje", "Inicio de sesión exitoso");
                 response.put("usuario", usuario.get());
@@ -84,18 +87,21 @@ public class UsuarioController {
     }
     
     // Admin endpoints
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     @Operation(summary = "Listar todos los usuarios (Admin)")
     public ResponseEntity<List<Usuario>> obtenerTodos() {
         return ResponseEntity.ok(usuarioService.obtenerTodos());
     }
     
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{rut}")
     public ResponseEntity<?> eliminar(@PathVariable String rut) {
         usuarioService.eliminar(rut);
         return ResponseEntity.ok(Map.of("mensaje", "Usuario eliminado"));
     }
     
+    @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/{rut}/desactivar")
     public ResponseEntity<?> desactivar(@PathVariable String rut) {
         usuarioService.desactivar(rut);

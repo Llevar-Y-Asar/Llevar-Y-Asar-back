@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Optional;
@@ -55,13 +56,15 @@ public class ProductoController {
     }
     
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Crear nuevo producto", description = "Crea un nuevo producto en el catálogo")
     @ApiResponse(responseCode = "200", description = "Producto creado exitosamente")
     public ResponseEntity<Producto> crear(@RequestBody Producto producto) {
         return ResponseEntity.ok(productoService.crear(producto));
     }
-    
+
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Actualizar producto", description = "Actualiza los datos de un producto existente")
     @ApiResponse(responseCode = "200", description = "Producto actualizado")
     @ApiResponse(responseCode = "404", description = "Producto no encontrado")
@@ -72,8 +75,9 @@ public class ProductoController {
         }
         return ResponseEntity.notFound().build();
     }
-    
+
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Eliminar producto", description = "Elimina un producto del catálogo")
     @ApiResponse(responseCode = "204", description = "Producto eliminado")
     public ResponseEntity<Void> eliminar(@PathVariable String id) {
