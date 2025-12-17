@@ -33,35 +33,27 @@ public class UsuarioService implements UserDetailsService {
     }
 
     public Usuario registrar(Usuario usuario) {
-        // Validar RUT (opcional, puedes comentar si no lo usas)
         if (!RutValidator.esValido(usuario.getRut())) {
             throw new RuntimeException("RUT inválido");
         }
         usuario.setRut(RutValidator.formatear(usuario.getRut()));
-
-        // Validar email único
         if (usuarioRepository.existsByEmail(usuario.getEmail())) {
             throw new RuntimeException("El email ya está registrado");
         }
-
-        // Guardar (contraseña en texto plano, solo para evaluación)
         return usuarioRepository.save(usuario);
     }
 
-    // MÉTODO CORREGIDO: actualizar por email
-    public Usuario actualizarPorEmail(String email, Usuario usuarioActualizado) {
-        Optional<Usuario> usuarioExistente = usuarioRepository.findByEmail(email);
-        if (usuarioExistente.isPresent()) {
-            Usuario usuario = usuarioExistente.get();
-            usuario.setNombre(usuarioActualizado.getNombre());
-            usuario.setTelefono(usuarioActualizado.getTelefono());
-            usuario.setDireccion(usuarioActualizado.getDireccion());
-            usuario.setCiudad(usuarioActualizado.getCiudad());
-            usuario.setRegion(usuarioActualizado.getRegion());
-            // No se permite cambiar email ni rol desde aquí
-            return usuarioRepository.save(usuario);
-        }
-        throw new RuntimeException("Usuario no encontrado con email: " + email);
+    public Usuario actualizarPorEmail(String email, Usuario datos) {
+        return usuarioRepository.findByEmail(email)
+            .map(u -> {
+                u.setNombre(datos.getNombre());
+                u.setTelefono(datos.getTelefono());
+                u.setDireccion(datos.getDireccion());
+                u.setCiudad(datos.getCiudad());
+                u.setRegion(datos.getRegion());
+                return usuarioRepository.save(u);
+            })
+            .orElseThrow(() -> new RuntimeException("Usuario no encontrado con email: " + email));
     }
 
     public void eliminar(String rut) {
@@ -69,42 +61,38 @@ public class UsuarioService implements UserDetailsService {
     }
 
     public void desactivar(String rut) {
-        Optional<Usuario> usuario = usuarioRepository.findByRut(rut);
-        if (usuario.isPresent()) {
-            usuario.get().setActivo(false);
-            usuarioRepository.save(usuario.get());
-        }
+        usuarioRepository.findByRut(rut)
+            .ifPresent(u -> {
+                u.setActivo(false);
+                usuarioRepository.save(u);
+            });
     }
 
-    //  MÉTODO CORREGIDO: validar login por email
+    // VALIDAR LOGIN POR EMAIL
     public boolean validarLoginPorEmail(String email, String password) {
-        Optional<Usuario> usuario = usuarioRepository.findByEmail(email);
-        if (usuario.isPresent()) {
-            // ⚠️ En producción: usar BCryptPasswordEncoder
-            return usuario.get().getPassword().equals(password);
-        }
-        return false;
+        return usuarioRepository.findByEmail(email)
+            .map(u -> u.getPassword().equals(password))
+            .orElse(false);
     }
 
-    // MÉTODO REQUERIDO POR SPRING SECURITY
+    // SPRING SECURITY: LOAD BY EMAIL
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        Optional<Usuario> usuarioOpt = usuarioRepository.findByEmail(email);
-        Usuario usuario = usuarioOpt.orElseThrow(() ->
-            new UsernameNotFoundException("Usuario no encontrado con email: " + email));
+        Usuario u = usuarioRepository.findByEmail(email)
+            .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + email));
 
         var authorities = Collections.singletonList(
-            new SimpleGrantedAuthority("ROLE_" + usuario.getRol())
+            new SimpleGrantedAuthority("ROLE_" + u.getRol())
         );
 
         return org.springframework.security.core.userdetails.User
-            .withUsername(usuario.getEmail())
-            .password(usuario.getPassword())
+            .withUsername(u.getEmail())
+            .password(u.getPassword())
             .authorities(authorities)
             .accountExpired(false)
             .accountLocked(false)
             .credentialsExpired(false)
-            .disabled(!usuario.getActivo())
+            .disabled(!u.getActivo())
             .build();
     }
 }

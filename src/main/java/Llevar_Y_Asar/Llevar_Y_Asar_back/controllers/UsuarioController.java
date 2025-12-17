@@ -28,32 +28,25 @@ public class UsuarioController {
     private JwtUtil jwtUtil;
     
     @PostMapping("/registro")
-    @Operation(summary = "Registrar nuevo usuario", description = "Crea una nueva cuenta de usuario con email")
+    @Operation(summary = "Registrar nuevo usuario", description = "Crea una nueva cuenta con RUT y email")
     @ApiResponse(responseCode = "201", description = "Usuario registrado exitosamente")
     public ResponseEntity<?> registrar(@RequestBody Usuario usuario) {
         try {
-            Usuario nuevoUsuario = usuarioService.registrar(usuario);
-            Map<String, Object> response = new HashMap<>();
-            response.put("mensaje", "Usuario registrado exitosamente");
-            response.put("usuario", nuevoUsuario);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+            Usuario nuevo = usuarioService.registrar(usuario);
+            return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("usuario", nuevo));
         } catch (RuntimeException e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
     
     @PostMapping("/login")
-    @Operation(summary = "Iniciar sesión", description = "Autentica un usuario con email y contraseña")
+    @Operation(summary = "Iniciar sesión", description = "Autentica con email y contraseña")
     public ResponseEntity<?> login(@RequestBody Map<String, String> credenciales) {
         String email = credenciales.get("email");
         String password = credenciales.get("password");
         
         if (email == null || password == null) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Email y contraseña son requeridos");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            return ResponseEntity.badRequest().body(Map.of("error", "Email y contraseña son requeridos"));
         }
         
         if (usuarioService.validarLoginPorEmail(email, password)) {
@@ -67,70 +60,45 @@ public class UsuarioController {
                 return ResponseEntity.ok(response);
             }
         }
-        
-        Map<String, String> error = new HashMap<>();
-        error.put("error", "Email o contraseña incorrectos");
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(Map.of("error", "Email o contraseña incorrectos"));
     }
     
     @GetMapping("/perfil/{email}")
-    @Operation(summary = "Obtener perfil de usuario", description = "Retorna los datos del usuario por su email")
+    @Operation(summary = "Obtener perfil por email")
     public ResponseEntity<?> obtenerPorEmail(@PathVariable String email) {
-        Optional<Usuario> usuario = usuarioService.obtenerPorEmail(email);
-        if (usuario.isPresent()) {
-            return ResponseEntity.ok(usuario.get());
-        }
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-            .body("Usuario no encontrado");
-    }
-    
-    @GetMapping
-    @Operation(summary = "Listar todos los usuarios (Admin)", description = "Retorna la lista de todos los usuarios registrados")
-    public ResponseEntity<List<Usuario>> obtenerTodos() {
-        List<Usuario> usuarios = usuarioService.obtenerTodos();
-        return ResponseEntity.ok(usuarios);
+        Optional<Usuario> u = usuarioService.obtenerPorEmail(email);
+        return u.map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
     
     @PutMapping("/perfil/{email}")
-    @Operation(summary = "Actualizar perfil de usuario", description = "Modifica los datos de un usuario existente por email")
-    public ResponseEntity<?> actualizar(@PathVariable String email, @RequestBody Usuario usuarioActualizado) {
+    @Operation(summary = "Actualizar perfil por email")
+    public ResponseEntity<?> actualizar(@PathVariable String email, @RequestBody Usuario datos) {
         try {
-            Usuario actualizado = usuarioService.actualizarPorEmail(email, usuarioActualizado);
+            Usuario actualizado = usuarioService.actualizarPorEmail(email, datos);
             return ResponseEntity.ok(actualizado);
         } catch (RuntimeException e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+    
+    // Admin endpoints
+    @GetMapping
+    @Operation(summary = "Listar todos los usuarios (Admin)")
+    public ResponseEntity<List<Usuario>> obtenerTodos() {
+        return ResponseEntity.ok(usuarioService.obtenerTodos());
     }
     
     @DeleteMapping("/{rut}")
-    @Operation(summary = "Eliminar usuario (Admin)", description = "Elimina una cuenta de usuario del sistema por RUT")
     public ResponseEntity<?> eliminar(@PathVariable String rut) {
-        try {
-            usuarioService.eliminar(rut);
-            Map<String, String> response = new HashMap<>();
-            response.put("mensaje", "Usuario eliminado exitosamente");
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
-        }
+        usuarioService.eliminar(rut);
+        return ResponseEntity.ok(Map.of("mensaje", "Usuario eliminado"));
     }
     
     @PatchMapping("/{rut}/desactivar")
-    @Operation(summary = "Desactivar cuenta (Admin)", description = "Desactiva una cuenta de usuario por RUT")
     public ResponseEntity<?> desactivar(@PathVariable String rut) {
-        try {
-            usuarioService.desactivar(rut);
-            Map<String, String> response = new HashMap<>();
-            response.put("mensaje", "Usuario desactivado exitosamente");
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
-        }
+        usuarioService.desactivar(rut);
+        return ResponseEntity.ok(Map.of("mensaje", "Usuario desactivado"));
     }
 }
